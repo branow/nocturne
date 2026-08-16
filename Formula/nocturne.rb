@@ -5,7 +5,7 @@ class Nocturne < Formula
   desc "Keep macOS awake — menu bar + CLI, no App Store, no account"
   homepage "https://github.com/branow/nocturne"
   url "https://github.com/branow/nocturne/releases/download/v0.1.0/nocturne-0.1.0-macos.tar.gz"
-  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  sha256 "6eefebdd7e71c1b6f6c211c01b4ca3311409d1fa545603d33fd88a5c10cd6a8b"
   version "0.1.0"
   license "MIT"
 
