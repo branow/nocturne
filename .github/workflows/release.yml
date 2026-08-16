@@ -1,0 +1,56 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build universal binary
+        run: swift build -c release --arch arm64 --arch x86_64
+
+      - name: Package
+        id: pkg
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          BIN="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)/nocturne"
+          TARBALL="nocturne-${VERSION}-macos.tar.gz"
+          mkdir -p dist
+          cp "$BIN" dist/nocturne
+          cp LICENSE README.md dist/
+          tar -C dist -czf "$TARBALL" nocturne LICENSE README.md
+          SHA="$(shasum -a 256 "$TARBALL" | awk '{print $1}')"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tarball=$TARBALL"  >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA"          >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.pkg.outputs.tarball }}
+
+      - name: Bump formula on main
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.pkg.outputs.version }}"
+          SHA="${{ steps.pkg.outputs.sha }}"
+          TARBALL="${{ steps.pkg.outputs.tarball }}"
+          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/${TARBALL}"
+          /usr/bin/sed -i '' -E \
+            -e "s|^  url .*|  url \"${URL}\"|" \
+            -e "s|^  sha256 .*|  sha256 \"${SHA}\"|" \
+            -e "s|^  version .*|  version \"${VERSION}\"|" \
+            Formula/nocturne.rb
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/nocturne.rb
+          git commit -m "chore: bump formula to ${VERSION}" || { echo "nothing to bump"; exit 0; }
+          git push origin HEAD:main
